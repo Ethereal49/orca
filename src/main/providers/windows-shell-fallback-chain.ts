@@ -81,17 +81,12 @@ export function buildWindowsPowerShellSpawnAttempts(args: {
   let startupCommandStaging: WindowsPowerShellStartupCommandStaging | undefined
   try {
     for (const candidate of chain) {
-      // Why: cmd.exe cannot consume the staged PowerShell path, so don't prebuild
-      // a file that only has to be deleted when cmd wins the fallback.
-      const candidateStartupCommand = isWindowsPowerShellShellPath(candidate)
-        ? args.startupCommand
-        : undefined
       const attempt = toAttempt(
         candidate,
         args.cwd,
         args.defaultCwd,
         args.wslContext,
-        candidateStartupCommand,
+        args.startupCommand,
         startupCommandStaging
       )
       startupCommandStaging ??= attempt.startupCommandStaging
