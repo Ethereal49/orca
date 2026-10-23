@@ -205,9 +205,9 @@ function stagePowerShellStartupCommand(
         if (cleaned) {
           return
         }
-        cleaned = true
         try {
           rmSync(createdDirectoryPath, { recursive: true, force: true })
+          cleaned = true
         } catch {
           // Spawn cleanup must not replace the shell error with a temp-file error.
         }

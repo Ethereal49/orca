@@ -1,12 +1,18 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { rmSync as fsRmSync } from 'fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildWslInteractiveLoginShellCommand } from '../../shared/wsl-login-shell-command'
 import { resolveSetupRunnerCommand } from '../../shared/setup-runner-command'
 import { resolveWindowsShellLaunchArgs } from './windows-shell-args'
 // Why resolved rather than hardcoded: the wrapper tree is content-addressed.
 import { getShellReadyWrapperRoot } from './local-pty-shell-ready-wrapper-root'
+
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  return { ...actual, rmSync: vi.fn(actual.rmSync) }
+})
 
 const CODEX_LAUNCH_PREFLIGHT = 'C:\\Program Files\\Orca\\orca.exe'
 const CMD_CODEX_LAUNCH_PREFLIGHT =
@@ -47,6 +53,7 @@ describe('resolveWindowsShellLaunchArgs', () => {
     previousUserDataPath = process.env.ORCA_USER_DATA_PATH
     userDataPath = mkdtempSync(join(tmpdir(), 'windows-shell-args-test-'))
     process.env.ORCA_USER_DATA_PATH = userDataPath
+    vi.mocked(fsRmSync).mockClear()
   })
 
   afterEach(() => {
@@ -259,6 +266,29 @@ describe('resolveWindowsShellLaunchArgs', () => {
       expect(existsSync(staging.directoryPath)).toBe(false)
     }
   )
+
+  it('retries staged PowerShell cleanup after a transient removal failure', () => {
+    const result = resolveWindowsShellLaunchArgs(
+      'powershell.exe',
+      'C:\\Users\\alice',
+      'C:\\Users\\alice',
+      undefined,
+      `pi "${'每日推进'.repeat(1983)}任"`
+    )
+    const staging = result.startupCommandStaging!
+    stagingCleanups.push(staging.cleanup)
+    vi.mocked(fsRmSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error('file is in use'), { code: 'EBUSY' })
+    })
+
+    staging.cleanup()
+    expect(fsRmSync).toHaveBeenCalledOnce()
+    expect(existsSync(staging.directoryPath)).toBe(true)
+
+    staging.cleanup()
+    expect(fsRmSync).toHaveBeenCalledTimes(2)
+    expect(existsSync(staging.directoryPath)).toBe(false)
+  })
 
   it('keeps PowerShell startup commands over the EncodedCommand budget on stdin delivery', () => {
     const result = resolveWindowsShellLaunchArgs(
