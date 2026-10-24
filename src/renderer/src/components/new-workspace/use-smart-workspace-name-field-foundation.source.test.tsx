@@ -78,6 +78,7 @@ describe('smart workspace explicit source connection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.readStatus.mockResolvedValue({ connected: false, viewer: null })
     mocks.state.linearStatus = {
       connected: false,
       viewer: null,

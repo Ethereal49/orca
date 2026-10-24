@@ -26,8 +26,8 @@ export function SmartWorkspaceSourceResultList({
     | 'jiraSource'
     | 'loading'
     | 'searchResultRows'
-    | 'linearStatusChecked'
-    | 'linearStatus'
+    | 'linearSearchHostStatus'
+    | 'linearSearchHostChecked'
     | 'linearReadError'
     | 'showJiraSiteContext'
     | 'jiraConnectionStatus'
@@ -49,8 +49,8 @@ export function SmartWorkspaceSourceResultList({
     jiraSource,
     loading,
     searchResultRows,
-    linearStatusChecked,
-    linearStatus,
+    linearSearchHostStatus,
+    linearSearchHostChecked,
     showJiraSiteContext,
     jiraConnectionStatus,
     reserveLinearLoadingResults,
@@ -140,7 +140,9 @@ export function SmartWorkspaceSourceResultList({
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
             {jiraSource.intent
               ? null
-              : mode === 'linear' && linearStatusChecked && !linearStatus.connected
+              : mode === 'linear' &&
+                  linearSearchHostChecked &&
+                  linearSearchHostStatus?.connected === false
                 ? translate(
                     'auto.components.new.workspace.SmartWorkspaceNameField.3e8bb1176a',
                     'Connect Linear in Settings to search issues.'

@@ -137,8 +137,8 @@ export function useWorkItemSourceFoundation(props: NormalizedWorkItemSourceSearc
   const state = useWorkItemSourceState(textOnly, value)
   const hasLinearSourceOverride = props.linearSourceContext?.provider === 'linear'
   const linearConnection = useLinearSourceConnection({
-    enabled: hasLinearSourceOverride && !disabled && !textOnly,
-    sourceContext: hasLinearSourceOverride ? linearSourceContext : null
+    enabled: linearSourceContext !== null && !disabled && !textOnly,
+    sourceContext: linearSourceContext
   })
   const linearStatus = hasLinearSourceOverride
     ? (linearConnection.status ?? { connected: false, viewer: null })
@@ -146,6 +146,11 @@ export function useWorkItemSourceFoundation(props: NormalizedWorkItemSourceSearc
   const linearStatusChecked = hasLinearSourceOverride
     ? linearConnection.loaded
     : defaultLinearStatusChecked
+  // Why: searches read the repo host; its connection state must drive the empty state.
+  const linearSearchHostStatus = hasLinearSourceOverride ? linearStatus : linearConnection.status
+  const linearSearchHostChecked = hasLinearSourceOverride
+    ? linearStatusChecked
+    : linearConnection.loaded
   const jiraConnection = useJiraSourceConnection({
     enabled: !disabled && !textOnly && jiraSourceContext !== null,
     sourceContext: jiraSourceContext
@@ -197,6 +202,8 @@ export function useWorkItemSourceFoundation(props: NormalizedWorkItemSourceSearc
     getCachedWorkItems,
     linearStatus,
     linearStatusChecked,
+    linearSearchHostStatus,
+    linearSearchHostChecked,
     linearWorkspaceIdOverride: hasLinearSourceOverride
       ? (linearStatus.selectedWorkspaceId ?? linearStatus.activeWorkspaceId ?? null)
       : undefined,

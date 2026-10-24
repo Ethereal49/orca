@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { credentialDecryptionMessage } from '../../../../shared/integration-credential-errors'
 import type { LinearIssue } from '../../../../shared/linear/issue-types'
 import type { LinearConnectionStatus } from '../../../../shared/linear/workspace-types'
@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     selectedWorkspaceId: 'workspace-1'
   }
   return {
+    readStatus: vi.fn(),
     state: {
       checkLinearConnection: vi.fn(),
       linearStatus,
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: typeof mocks.state) => unknown) => selector(mocks.state)
 }))
+vi.mock('@/runtime/runtime-linear-client', () => ({ linearStatus: mocks.readStatus }))
 vi.mock('@/lib/local-preflight-context', () => ({
   getLocalPreflightContext: () => ({}),
   localPreflightContextKey: () => 'test'
@@ -79,6 +81,19 @@ function LinearPicker({ value }: { value: string }): React.JSX.Element {
 }
 
 describe('composer Linear read errors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.state.linearStatus = {
+      connected: true,
+      viewer: null,
+      selectedWorkspaceId: 'workspace-1'
+    }
+    mocks.readStatus.mockResolvedValue({
+      connected: true,
+      viewer: null,
+      selectedWorkspaceId: 'workspace-1'
+    })
+  })
   afterEach(cleanup)
 
   it('shows the read credential error on the Linear tab only, and a successful search clears it', async () => {
@@ -115,5 +130,24 @@ describe('composer Linear read errors', () => {
     rerender(<LinearPicker value="launch" />)
     await waitFor(() => expect(screen.getByText(/Task/)).toBeTruthy())
     expect(screen.queryByText(message)).toBeNull()
+  })
+
+  it('reports the searched repo host as disconnected when the focused host is connected', async () => {
+    mocks.state.linearStatus = {
+      connected: true,
+      viewer: null,
+      selectedWorkspaceId: 'focused-workspace'
+    }
+    mocks.readStatus.mockResolvedValue({ connected: false, viewer: null })
+    mocks.state.searchLinearIssues.mockResolvedValue([])
+    render(<LinearPicker value="launch" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Linear tab' }))
+
+    await waitFor(() =>
+      expect(screen.getByText('Connect Linear in Settings to search issues.')).toBeTruthy()
+    )
+    expect(mocks.readStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'task-source', provider: 'linear', hostId: 'runtime:env-1' })
+    )
   })
 })
