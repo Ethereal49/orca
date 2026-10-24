@@ -290,21 +290,29 @@ describe('resolveWindowsShellLaunchArgs', () => {
     expect(existsSync(staging.directoryPath)).toBe(false)
   })
 
-  it('keeps PowerShell startup commands over the EncodedCommand budget on stdin delivery', () => {
+  it('stages PowerShell startup commands whose encoded form exceeds the launch budget', () => {
+    const startupCommand = `orca ${'x'.repeat(22_000)}`
+    expect(Buffer.from(startupCommand, 'utf16le').toString('base64').length).toBeGreaterThan(28_000)
+
     const result = resolveWindowsShellLaunchArgs(
       'powershell.exe',
       'C:\\Users\\alice',
       'C:\\Users\\alice',
       undefined,
-      `orca ${'x'.repeat(22_000)}`
+      startupCommand
     )
 
-    expect(result.startupCommandDeliveredInShellArgs).toBeUndefined()
-    expect(result.startupCommandStaging).toBeUndefined()
-    expect(result.shellArgs).toEqual(['-NoLogo', '-NoExit', '-EncodedCommand', expect.any(String)])
+    expect(result.startupCommandDeliveredInShellArgs).toBe(true)
+    const staging = result.startupCommandStaging!
+    stagingCleanups.push(staging.cleanup)
+    expect(readFileSync(staging.scriptPath, 'utf8')).toBe(startupCommand)
+    expect(result.shellArgs[3]?.length).toBeLessThanOrEqual(28_000)
     const command = decodePowerShellCommand(result)
     expect(command).toContain(expectedPowerShellRestoreCwdCommand("'C:\\Users\\alice'"))
-    expect(command).not.toContain('Get-Content -LiteralPath $__orcaStartupPath')
+    expect(command).not.toContain(startupCommand)
+    expect(command).toContain('Get-Content -LiteralPath $__orcaStartupPath -Raw -Encoding UTF8')
+    staging.cleanup()
+    expect(existsSync(staging.directoryPath)).toBe(false)
   })
 
   it('handles pwsh.exe (PowerShell Core) the same as Windows PowerShell', () => {

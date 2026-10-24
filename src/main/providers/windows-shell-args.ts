@@ -149,11 +149,6 @@ function getPowerShellEncodedCommand(
     }
   }
 
-  // Why: keep the existing cutoff for commands too large to stage safely.
-  if (encodePowerShellCommand(startupCommand).length > POWERSHELL_ENCODED_COMMAND_ARG_MAX_CHARS) {
-    return { encodedCommand: bootstrapEncodedCommand }
-  }
-
   let startupCommandStaging = staging
   if (!startupCommandStaging) {
     startupCommandStaging = stagePowerShellStartupCommand(startupCommand)

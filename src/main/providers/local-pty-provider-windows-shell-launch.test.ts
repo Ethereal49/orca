@@ -506,7 +506,7 @@ describe('LocalPtyProvider', () => {
       expect(mockProc.write).not.toHaveBeenCalled()
     })
 
-    it('delivers an over-budget PowerShell startup command through stdin once', async () => {
+    it('stages a PowerShell startup command whose encoded form exceeds the launch budget', async () => {
       Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
       const startupCommand = `orca ${'x'.repeat(22_000)}`
       provider.configure({
@@ -523,9 +523,9 @@ describe('LocalPtyProvider', () => {
 
       const spawnCall = spawnMock.mock.calls.at(-1)!
       const launchedCommand = Buffer.from(String(spawnCall[1][3]), 'base64').toString('utf16le')
-      expect(launchedCommand).not.toContain('Get-Content -LiteralPath $__orcaStartupPath')
-      await vi.waitFor(() => expect(mockProc.write).toHaveBeenCalledOnce())
-      expect(String(mockProc.write.mock.calls[0]?.[0])).toContain(startupCommand)
+      expect(launchedCommand).toContain('Get-Content -LiteralPath $__orcaStartupPath')
+      expect(launchedCommand).not.toContain(startupCommand)
+      expect(mockProc.write).not.toHaveBeenCalled()
     })
 
     it('awaits PowerShell availability before resolving an automatic Windows shell', async () => {
